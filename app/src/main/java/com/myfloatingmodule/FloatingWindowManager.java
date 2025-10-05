@@ -60,21 +60,24 @@ public class FloatingWindowManager {
             if (context != null) {
                 XposedBridge.log("MyFloatingModule: Starting floating window service with context");
                 
+                // Make context final for use in inner classes
+                final Context finalContext = context;
+                
                 // Start immediately and also with delays
-                startFloatingWindowService(context);
+                startFloatingWindowService(finalContext);
                 
                 // Also try with delays for better compatibility
                 new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        startFloatingWindowService(context);
+                        startFloatingWindowService(finalContext);
                     }
                 }, 1000);
                 
                 new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        startFloatingWindowService(context);
+                        startFloatingWindowService(finalContext);
                     }
                 }, 3000);
                 
