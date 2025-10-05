@@ -105,8 +105,7 @@ public class FloatingWindowService extends Service {
                     return;
                 }
             }
-        
-        try {
+            
             windowManager.addView(floatingView, params);
             isFloatingWindowVisible = true;
             android.util.Log.d("FloatingWindow", "Floating window added successfully");
