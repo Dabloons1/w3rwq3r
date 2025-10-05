@@ -78,7 +78,7 @@ public class FloatingWindowService extends Service {
         // Create floating view
         floatingView = createFloatingView();
         
-        // Set window parameters
+        // Set window parameters optimized for Unity games
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -86,7 +86,9 @@ public class FloatingWindowService extends Service {
                 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                 : WindowManager.LayoutParams.TYPE_PHONE,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | 
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN |
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS |
+            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
             PixelFormat.TRANSLUCENT
         );
         
@@ -98,6 +100,23 @@ public class FloatingWindowService extends Service {
             windowManager.addView(floatingView, params);
             isFloatingWindowVisible = true;
             android.util.Log.d("FloatingWindow", "Floating window added successfully");
+            
+            // Make the window more visible by bringing it to front
+            floatingView.bringToFront();
+            floatingView.invalidate();
+            
+            // Add a small delay and try to make it more visible
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (floatingView != null) {
+                        floatingView.setVisibility(View.VISIBLE);
+                        floatingView.bringToFront();
+                        floatingView.invalidate();
+                    }
+                }
+            }, 500);
+            
         } catch (Exception e) {
             // Handle permission or other errors
             android.util.Log.e("FloatingWindow", "Error adding floating window: " + e.getMessage());

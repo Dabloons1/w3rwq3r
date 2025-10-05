@@ -44,6 +44,34 @@ public class FloatingWindowManager {
         }
     }
     
+    public static void startFloatingWindowWithContext(android.app.Activity activity) {
+        try {
+            XposedBridge.log("MyFloatingModule: Starting floating window with Unity activity context");
+            
+            // Add a small delay to ensure the Unity activity is fully initialized
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Intent serviceIntent = new Intent(activity, FloatingWindowService.class);
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                            activity.startForegroundService(serviceIntent);
+                        } else {
+                            activity.startService(serviceIntent);
+                        }
+                        XposedBridge.log("MyFloatingModule: Floating window service started with Unity context");
+                    } catch (Exception e) {
+                        XposedBridge.log("MyFloatingModule: Error starting with Unity context: " + e.getMessage());
+                    }
+                }
+            }, 2000); // 2 second delay for Unity initialization
+            
+        } catch (Exception e) {
+            XposedBridge.log("MyFloatingModule: Error starting floating window with context: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
     private static Context getSystemContext() {
         try {
             // Try to get system context through reflection
