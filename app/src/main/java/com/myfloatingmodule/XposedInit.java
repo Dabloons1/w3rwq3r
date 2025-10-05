@@ -55,6 +55,13 @@ public class XposedInit implements IXposedHookLoadPackage {
     }
     
     private void hookUnityActivity(XC_LoadPackage.LoadPackageParam lpparam) {
+        // Hook Unity IL2CPP runtime for game memory manipulation
+        try {
+            hookUnityIL2CPP(lpparam);
+        } catch (Exception e) {
+            XposedBridge.log("MyFloatingModule: IL2CPP hook failed: " + e.getMessage());
+        }
+        
         // Try multiple approaches to get the activity context
         try {
             // Method 1: Hook Activity.onCreate for any activity in the game
@@ -122,6 +129,140 @@ public class XposedInit implements IXposedHookLoadPackage {
             });
         } catch (Exception e) {
             XposedBridge.log("MyFloatingModule: ActivityThread hook failed: " + e.getMessage());
+        }
+    }
+    
+    private void hookUnityIL2CPP(XC_LoadPackage.LoadPackageParam lpparam) {
+        XposedBridge.log("MyFloatingModule: Attempting to hook Unity IL2CPP runtime");
+        
+        try {
+            // Initialize comprehensive game hooks
+            GameHookManager.initializeGameHooks(lpparam);
+        } catch (Exception e) {
+            XposedBridge.log("MyFloatingModule: Game hook manager failed: " + e.getMessage());
+        }
+        
+        try {
+            // Hook Unity's IL2CPP runtime functions for memory manipulation
+            hookUnityMemoryFunctions(lpparam);
+        } catch (Exception e) {
+            XposedBridge.log("MyFloatingModule: Unity memory hook failed: " + e.getMessage());
+        }
+        
+        try {
+            // Hook Unity's MonoBehaviour methods for game logic manipulation
+            hookUnityGameLogic(lpparam);
+        } catch (Exception e) {
+            XposedBridge.log("MyFloatingModule: Unity game logic hook failed: " + e.getMessage());
+        }
+    }
+    
+    private void hookUnityMemoryFunctions(XC_LoadPackage.LoadPackageParam lpparam) {
+        try {
+            // Hook Unity's memory allocation functions
+            Class<?> unityClass = XposedHelpers.findClass("com.unity3d.player.UnityPlayer", lpparam.classLoader);
+            if (unityClass != null) {
+                XposedBridge.log("MyFloatingModule: Found UnityPlayer class, hooking memory functions");
+                
+                // Hook Unity's native memory functions
+                XposedHelpers.findAndHookMethod(unityClass, "UnitySendMessage", 
+                    String.class, String.class, String.class, new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                        String gameObject = (String) param.args[0];
+                        String method = (String) param.args[1];
+                        String message = (String) param.args[2];
+                        
+                        XposedBridge.log("MyFloatingModule: Unity message intercepted - GameObject: " + gameObject + 
+                                       ", Method: " + method + ", Message: " + message);
+                        
+                        // Intercept and modify game messages
+                        if (method.contains("SetHealth") || method.contains("SetCoins") || method.contains("SetScore")) {
+                            XposedBridge.log("MyFloatingModule: Game value modification detected: " + method);
+                            // Here we can modify the message to change game values
+                        }
+                    }
+                });
+            }
+        } catch (Exception e) {
+            XposedBridge.log("MyFloatingModule: Unity memory hook error: " + e.getMessage());
+        }
+    }
+    
+    private void hookUnityGameLogic(XC_LoadPackage.LoadPackageParam lpparam) {
+        try {
+            // Hook common Unity game classes for value manipulation
+            String[] gameClasses = {
+                "PlayerController",
+                "GameManager", 
+                "PlayerStats",
+                "CurrencyManager",
+                "HealthManager",
+                "ScoreManager"
+            };
+            
+            for (String className : gameClasses) {
+                try {
+                    Class<?> gameClass = XposedHelpers.findClass(className, lpparam.classLoader);
+                    if (gameClass != null) {
+                        XposedBridge.log("MyFloatingModule: Found game class: " + className);
+                        hookGameClassMethods(gameClass, className);
+                    }
+                } catch (Exception e) {
+                    // Class not found, continue with next
+                }
+            }
+        } catch (Exception e) {
+            XposedBridge.log("MyFloatingModule: Game logic hook error: " + e.getMessage());
+        }
+    }
+    
+    private void hookGameClassMethods(Class<?> gameClass, String className) {
+        try {
+            // Hook common game methods
+            String[] methods = {"Update", "Start", "Awake", "OnEnable", "OnDisable"};
+            
+            for (String methodName : methods) {
+                try {
+                    XposedHelpers.findAndHookMethod(gameClass, methodName, new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                            XposedBridge.log("MyFloatingModule: Game method called: " + className + "." + methodName);
+                        }
+                    });
+                } catch (Exception e) {
+                    // Method not found, continue
+                }
+            }
+            
+            // Hook value modification methods
+            String[] valueMethods = {"SetHealth", "SetCoins", "SetScore", "AddCoins", "TakeDamage", "Heal"};
+            
+            for (String methodName : valueMethods) {
+                try {
+                    XposedHelpers.findAndHookMethod(gameClass, methodName, int.class, new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                            int originalValue = (Integer) param.args[0];
+                            XposedBridge.log("MyFloatingModule: " + className + "." + methodName + " called with value: " + originalValue);
+                            
+                            // Modify the value for game hacking
+                            if (methodName.contains("Health") || methodName.contains("Heal")) {
+                                param.args[0] = 999999; // Max health
+                                XposedBridge.log("MyFloatingModule: Modified health to 999999");
+                            } else if (methodName.contains("Coin") || methodName.contains("Currency")) {
+                                param.args[0] = 999999; // Max coins
+                                XposedBridge.log("MyFloatingModule: Modified coins to 999999");
+                            }
+                        }
+                    });
+                } catch (Exception e) {
+                    // Method not found, continue
+                }
+            }
+            
+        } catch (Exception e) {
+            XposedBridge.log("MyFloatingModule: Error hooking " + className + ": " + e.getMessage());
         }
     }
 }
