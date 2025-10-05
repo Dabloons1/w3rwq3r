@@ -46,9 +46,9 @@ public class FloatingWindowManager {
     
     public static void startFloatingWindowWithContext(android.app.Activity activity) {
         try {
-            XposedBridge.log("MyFloatingModule: Starting floating window with Unity activity context");
+            XposedBridge.log("MyFloatingModule: Starting floating window with activity context");
             
-            // Add a small delay to ensure the Unity activity is fully initialized
+            // Add a small delay to ensure the activity is fully initialized
             new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                 @Override
                 public void run() {
@@ -59,15 +59,43 @@ public class FloatingWindowManager {
                         } else {
                             activity.startService(serviceIntent);
                         }
-                        XposedBridge.log("MyFloatingModule: Floating window service started with Unity context");
+                        XposedBridge.log("MyFloatingModule: Floating window service started with activity context");
                     } catch (Exception e) {
-                        XposedBridge.log("MyFloatingModule: Error starting with Unity context: " + e.getMessage());
+                        XposedBridge.log("MyFloatingModule: Error starting with activity context: " + e.getMessage());
                     }
                 }
-            }, 2000); // 2 second delay for Unity initialization
+            }, 2000); // 2 second delay for activity initialization
             
         } catch (Exception e) {
             XposedBridge.log("MyFloatingModule: Error starting floating window with context: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    public static void startFloatingWindowWithApplicationContext(android.app.Application app) {
+        try {
+            XposedBridge.log("MyFloatingModule: Starting floating window with application context");
+            
+            // Add a small delay to ensure the application is fully initialized
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Intent serviceIntent = new Intent(app, FloatingWindowService.class);
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                            app.startForegroundService(serviceIntent);
+                        } else {
+                            app.startService(serviceIntent);
+                        }
+                        XposedBridge.log("MyFloatingModule: Floating window service started with application context");
+                    } catch (Exception e) {
+                        XposedBridge.log("MyFloatingModule: Error starting with application context: " + e.getMessage());
+                    }
+                }
+            }, 3000); // 3 second delay for application initialization
+            
+        } catch (Exception e) {
+            XposedBridge.log("MyFloatingModule: Error starting floating window with application context: " + e.getMessage());
             e.printStackTrace();
         }
     }

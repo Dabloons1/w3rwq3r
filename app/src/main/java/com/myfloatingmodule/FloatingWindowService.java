@@ -34,6 +34,7 @@ public class FloatingWindowService extends Service {
     
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        android.util.Log.d("FloatingWindow", "Service started, attempting to show floating window");
         showFloatingWindow();
         return START_STICKY;
     }
@@ -73,28 +74,37 @@ public class FloatingWindowService extends Service {
     private void showFloatingWindow() {
         if (isFloatingWindowVisible) return;
         
-        windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
-        
-        // Create floating view
-        floatingView = createFloatingView();
-        
-        // Set window parameters optimized for Unity games
-        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O 
-                ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                : WindowManager.LayoutParams.TYPE_PHONE,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | 
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN |
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS |
-            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
-            PixelFormat.TRANSLUCENT
-        );
-        
-        params.gravity = Gravity.TOP | Gravity.START;
-        params.x = 50;
-        params.y = 200;
+        try {
+            windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+            
+            // Create floating view
+            floatingView = createFloatingView();
+            
+            // Set window parameters optimized for Unity games
+            WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O 
+                    ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                    : WindowManager.LayoutParams.TYPE_PHONE,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | 
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN |
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS |
+                WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                PixelFormat.TRANSLUCENT
+            );
+            
+            params.gravity = Gravity.TOP | Gravity.START;
+            params.x = 50;
+            params.y = 200;
+            
+            // Check overlay permission before trying to add view
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (!android.provider.Settings.canDrawOverlays(this)) {
+                    android.util.Log.e("FloatingWindow", "Overlay permission not granted");
+                    return;
+                }
+            }
         
         try {
             windowManager.addView(floatingView, params);
