@@ -11,36 +11,100 @@ public class FloatingWindowManager {
     
     public static void startFloatingWindow(ClassLoader classLoader) {
         try {
-            // Get the current context
-            Context context = getSystemContext();
+            XposedBridge.log("MyFloatingModule: Attempting to start floating window");
+            
+            // Try multiple context acquisition methods
+            Context context = null;
+            
+            // Method 1: Try system context
+            try {
+                context = getSystemContext();
+                if (context != null) {
+                    XposedBridge.log("MyFloatingModule: Got system context");
+                }
+            } catch (Exception e) {
+                XposedBridge.log("MyFloatingModule: System context failed: " + e.getMessage());
+            }
+            
+            // Method 2: Try to get context from ActivityThread
+            if (context == null) {
+                try {
+                    Class<?> activityThreadClass = Class.forName("android.app.ActivityThread");
+                    Object activityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null);
+                    if (activityThread != null) {
+                        context = (Context) activityThreadClass.getMethod("getSystemContext").invoke(activityThread);
+                        XposedBridge.log("MyFloatingModule: Got ActivityThread context");
+                    }
+                } catch (Exception e) {
+                    XposedBridge.log("MyFloatingModule: ActivityThread context failed: " + e.getMessage());
+                }
+            }
+            
+            // Method 3: Try to get context from current application
+            if (context == null) {
+                try {
+                    Class<?> activityThreadClass = Class.forName("android.app.ActivityThread");
+                    Object activityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null);
+                    if (activityThread != null) {
+                        Object app = activityThreadClass.getMethod("getApplication").invoke(activityThread);
+                        if (app instanceof Context) {
+                            context = (Context) app;
+                            XposedBridge.log("MyFloatingModule: Got application context");
+                        }
+                    }
+                } catch (Exception e) {
+                    XposedBridge.log("MyFloatingModule: Application context failed: " + e.getMessage());
+                }
+            }
+            
             if (context != null) {
-                XposedBridge.log("MyFloatingModule: Starting floating window service");
+                XposedBridge.log("MyFloatingModule: Starting floating window service with context");
                 
-                // Add a small delay to ensure the game has fully loaded
+                // Start immediately and also with delays
+                startFloatingWindowService(context);
+                
+                // Also try with delays for better compatibility
                 new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        try {
-                            // Always start the floating window service when called from Xposed
-                            Intent serviceIntent = new Intent(context, FloatingWindowService.class);
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                context.startForegroundService(serviceIntent);
-                            } else {
-                                context.startService(serviceIntent);
-                            }
-                            XposedBridge.log("MyFloatingModule: Floating window service started successfully");
-                        } catch (Exception e) {
-                            XposedBridge.log("MyFloatingModule: Error in delayed start: " + e.getMessage());
-                        }
+                        startFloatingWindowService(context);
                     }
-                }, 3000); // 3 second delay
+                }, 1000);
+                
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        startFloatingWindowService(context);
+                    }
+                }, 3000);
                 
             } else {
-                XposedBridge.log("MyFloatingModule: Could not get system context");
+                XposedBridge.log("MyFloatingModule: Could not get any context - trying alternative approach");
+                // Try to start without context (this might fail but worth trying)
+                try {
+                    // This is a last resort - might not work but worth attempting
+                    XposedBridge.log("MyFloatingModule: Attempting to start service without context");
+                } catch (Exception e) {
+                    XposedBridge.log("MyFloatingModule: Alternative approach failed: " + e.getMessage());
+                }
             }
         } catch (Exception e) {
             XposedBridge.log("MyFloatingModule: Error starting floating window: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+    
+    private static void startFloatingWindowService(Context context) {
+        try {
+            Intent serviceIntent = new Intent(context, FloatingWindowService.class);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent);
+            } else {
+                context.startService(serviceIntent);
+            }
+            XposedBridge.log("MyFloatingModule: Floating window service started successfully");
+        } catch (Exception e) {
+            XposedBridge.log("MyFloatingModule: Error starting service: " + e.getMessage());
         }
     }
     

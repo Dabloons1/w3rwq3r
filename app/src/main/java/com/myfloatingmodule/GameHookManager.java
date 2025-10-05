@@ -75,17 +75,21 @@ public class GameHookManager {
     
     private static void hookGamePatterns(XC_LoadPackage.LoadPackageParam lpparam) {
         try {
-            // Hook common Unity game classes and methods
+            // Hook actual Soul Strike game classes found in the dump
             String[] targetClasses = {
-                "PlayerController",
-                "GameManager",
-                "PlayerStats", 
-                "CurrencyManager",
-                "HealthManager",
-                "ScoreManager",
-                "PlayerData",
-                "GameData",
-                "StatsManager"
+                "Player",                    // Main player class
+                "PlayerStats",               // Player statistics
+                "PlayerData",                // Player data management
+                "Data_Mission",              // Mission data
+                "Data_Companions_PlayerPower", // Player power data
+                "Charac_PlayerStat",         // Character player stats
+                "BT_Player__Manager",        // Player behavior tree manager
+                "Alch_Currency",             // Currency system
+                "Currency_Info_Popup",       // Currency UI
+                "EventManager",              // Event system
+                "RuntimeManager",            // Runtime management
+                "LocalSave__Manager",        // Save system
+                "Reddot__Manager"            // Notification system
             };
             
             for (String className : targetClasses) {
@@ -135,25 +139,14 @@ public class GameHookManager {
     
     private static void hookValueMethods(Class<?> gameClass, String className) {
         try {
-            // Health-related methods
-            String[] healthMethods = {"SetHealth", "TakeDamage", "Heal", "SetHP", "Damage", "RestoreHealth"};
-            for (String methodName : healthMethods) {
+            // Hook common Unity lifecycle methods first
+            String[] lifecycleMethods = {"Update", "Start", "Awake", "OnEnable", "OnDisable", "FixedUpdate", "LateUpdate"};
+            for (String methodName : lifecycleMethods) {
                 try {
-                    XposedHelpers.findAndHookMethod(gameClass, methodName, int.class, new XC_MethodHook() {
+                    XposedHelpers.findAndHookMethod(gameClass, methodName, new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                            int originalValue = (Integer) param.args[0];
-                            XposedBridge.log("MyFloatingModule: " + className + "." + methodName + " called with: " + originalValue);
-                            
-                            if (godModeEnabled) {
-                                if (methodName.contains("Damage") || methodName.contains("Take")) {
-                                    param.args[0] = 0; // No damage
-                                    XposedBridge.log("MyFloatingModule: God mode - Damage blocked");
-                                } else if (methodName.contains("Heal") || methodName.contains("Set")) {
-                                    param.args[0] = 999999; // Max health
-                                    XposedBridge.log("MyFloatingModule: God mode - Health set to max");
-                                }
-                            }
+                            XposedBridge.log("MyFloatingModule: " + className + "." + methodName + " called");
                         }
                     });
                 } catch (Exception e) {
@@ -161,51 +154,79 @@ public class GameHookManager {
                 }
             }
             
-            // Currency-related methods
-            String[] currencyMethods = {"SetCoins", "AddCoins", "SpendCoins", "SetCurrency", "AddCurrency", "SetGold"};
-            for (String methodName : currencyMethods) {
-                try {
-                    XposedHelpers.findAndHookMethod(gameClass, methodName, int.class, new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                            int originalValue = (Integer) param.args[0];
-                            XposedBridge.log("MyFloatingModule: " + className + "." + methodName + " called with: " + originalValue);
+            // Hook all public methods with common parameter types
+            try {
+                java.lang.reflect.Method[] methods = gameClass.getDeclaredMethods();
+                for (java.lang.reflect.Method method : methods) {
+                    if (method.getParameterCount() == 1) {
+                        Class<?> paramType = method.getParameterTypes()[0];
+                        String methodName = method.getName();
+                        
+                        // Hook methods that might modify values
+                        if (methodName.toLowerCase().contains("set") || 
+                            methodName.toLowerCase().contains("add") || 
+                            methodName.toLowerCase().contains("take") ||
+                            methodName.toLowerCase().contains("damage") ||
+                            methodName.toLowerCase().contains("heal") ||
+                            methodName.toLowerCase().contains("coin") ||
+                            methodName.toLowerCase().contains("currency") ||
+                            methodName.toLowerCase().contains("speed") ||
+                            methodName.toLowerCase().contains("health")) {
                             
-                            if (unlimitedCoinsEnabled) {
-                                if (methodName.contains("Add") || methodName.contains("Set")) {
-                                    param.args[0] = 999999; // Max coins
-                                    XposedBridge.log("MyFloatingModule: Unlimited coins - Currency set to max");
-                                } else if (methodName.contains("Spend")) {
-                                    param.args[0] = 0; // No cost
-                                    XposedBridge.log("MyFloatingModule: Unlimited coins - Cost set to 0");
+                            try {
+                                if (paramType == int.class) {
+                                    XposedHelpers.findAndHookMethod(gameClass, methodName, int.class, new XC_MethodHook() {
+                                        @Override
+                                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                                            int originalValue = (Integer) param.args[0];
+                                            XposedBridge.log("MyFloatingModule: " + className + "." + methodName + " called with: " + originalValue);
+                                            
+                                            // Apply hacks based on method name
+                                            if (methodName.toLowerCase().contains("damage") || methodName.toLowerCase().contains("take")) {
+                                                if (godModeEnabled) {
+                                                    param.args[0] = 0; // No damage
+                                                    XposedBridge.log("MyFloatingModule: God mode - Damage blocked");
+                                                }
+                                            } else if (methodName.toLowerCase().contains("heal") || methodName.toLowerCase().contains("health")) {
+                                                if (godModeEnabled) {
+                                                    param.args[0] = 999999; // Max health
+                                                    XposedBridge.log("MyFloatingModule: God mode - Health set to max");
+                                                }
+                                            } else if (methodName.toLowerCase().contains("coin") || methodName.toLowerCase().contains("currency")) {
+                                                if (unlimitedCoinsEnabled) {
+                                                    if (methodName.toLowerCase().contains("add") || methodName.toLowerCase().contains("set")) {
+                                                        param.args[0] = 999999; // Max coins
+                                                        XposedBridge.log("MyFloatingModule: Unlimited coins - Currency set to max");
+                                                    } else if (methodName.toLowerCase().contains("spend")) {
+                                                        param.args[0] = 0; // No cost
+                                                        XposedBridge.log("MyFloatingModule: Unlimited coins - Cost set to 0");
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    });
+                                } else if (paramType == float.class) {
+                                    XposedHelpers.findAndHookMethod(gameClass, methodName, float.class, new XC_MethodHook() {
+                                        @Override
+                                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                                            float originalValue = (Float) param.args[0];
+                                            XposedBridge.log("MyFloatingModule: " + className + "." + methodName + " called with: " + originalValue);
+                                            
+                                            if (methodName.toLowerCase().contains("speed") && speedHackEnabled) {
+                                                param.args[0] = 10.0f; // 10x speed
+                                                XposedBridge.log("MyFloatingModule: Speed hack - Speed set to 10x");
+                                            }
+                                        }
+                                    });
                                 }
+                            } catch (Exception e) {
+                                // Method hook failed, continue
                             }
                         }
-                    });
-                } catch (Exception e) {
-                    // Method not found, continue
+                    }
                 }
-            }
-            
-            // Speed-related methods
-            String[] speedMethods = {"SetSpeed", "SetMoveSpeed", "SetVelocity", "SetWalkSpeed", "SetRunSpeed"};
-            for (String methodName : speedMethods) {
-                try {
-                    XposedHelpers.findAndHookMethod(gameClass, methodName, float.class, new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                            float originalValue = (Float) param.args[0];
-                            XposedBridge.log("MyFloatingModule: " + className + "." + methodName + " called with: " + originalValue);
-                            
-                            if (speedHackEnabled) {
-                                param.args[0] = 10.0f; // 10x speed
-                                XposedBridge.log("MyFloatingModule: Speed hack - Speed set to 10x");
-                            }
-                        }
-                    });
-                } catch (Exception e) {
-                    // Method not found, continue
-                }
+            } catch (Exception e) {
+                XposedBridge.log("MyFloatingModule: Error getting methods from " + className + ": " + e.getMessage());
             }
             
         } catch (Exception e) {

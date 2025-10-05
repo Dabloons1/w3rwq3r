@@ -13,32 +13,49 @@ public class XposedInit implements IXposedHookLoadPackage {
         XposedBridge.log("MyFloatingModule: Package loaded: " + lpparam.packageName);
         XposedBridge.log("MyFloatingModule: Process name: " + lpparam.processName);
         
-        // Hook into the specific game package
-        if (lpparam.packageName.equals("com.com2usholdings.soulstrike.android.google.global.normal")) {
-            
-            XposedBridge.log("MyFloatingModule: *** TARGET GAME DETECTED ***");
-            XposedBridge.log("MyFloatingModule: Hooking into Soul Strike game: " + lpparam.packageName);
-            XposedBridge.log("MyFloatingModule: ClassLoader: " + lpparam.classLoader);
-            
-            // Try multiple approaches to get context and start floating window
-            try {
-                hookUnityActivity(lpparam);
-            } catch (Exception e) {
-                XposedBridge.log("MyFloatingModule: Error hooking Unity activity: " + e.getMessage());
-            }
-            
-            // Fallback: Try to start floating window with system context
-            FloatingWindowManager.startFloatingWindow(lpparam.classLoader);
-            
-            // Additional fallback: Try to start with a simple delay
-            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    XposedBridge.log("MyFloatingModule: Fallback attempt - trying to start floating window");
-                    FloatingWindowManager.startFloatingWindow(lpparam.classLoader);
+            // Hook into the specific game package
+            if (lpparam.packageName.equals("com.com2usholdings.soulstrike.android.google.global.normal")) {
+
+                XposedBridge.log("MyFloatingModule: *** TARGET GAME DETECTED ***");
+                XposedBridge.log("MyFloatingModule: Hooking into Soul Strike game: " + lpparam.packageName);
+                XposedBridge.log("MyFloatingModule: ClassLoader: " + lpparam.classLoader);
+
+                // IMMEDIATE floating window start - don't wait for conditions
+                XposedBridge.log("MyFloatingModule: Starting floating window immediately");
+                FloatingWindowManager.startFloatingWindow(lpparam.classLoader);
+
+                // Try multiple approaches to get context and start floating window
+                try {
+                    hookUnityActivity(lpparam);
+                } catch (Exception e) {
+                    XposedBridge.log("MyFloatingModule: Error hooking Unity activity: " + e.getMessage());
                 }
-            }, 5000); // 5 second delay as final fallback
-        }
+
+                // Multiple fallback attempts with different delays
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        XposedBridge.log("MyFloatingModule: 2 second fallback - trying to start floating window");
+                        FloatingWindowManager.startFloatingWindow(lpparam.classLoader);
+                    }
+                }, 2000);
+
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        XposedBridge.log("MyFloatingModule: 5 second fallback - trying to start floating window");
+                        FloatingWindowManager.startFloatingWindow(lpparam.classLoader);
+                    }
+                }, 5000);
+
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        XposedBridge.log("MyFloatingModule: 10 second fallback - trying to start floating window");
+                        FloatingWindowManager.startFloatingWindow(lpparam.classLoader);
+                    }
+                }, 10000);
+            }
         // Also hook into system processes for broader compatibility
         else if (lpparam.packageName.equals("com.android.systemui") || 
                  lpparam.packageName.equals("com.android.launcher3") ||
